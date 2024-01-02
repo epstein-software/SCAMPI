@@ -14,7 +14,7 @@ SCAMPI is developed for screening SNPs with potential interaction effects withou
 
 ```
 library(devtools)
-devtools::install_github("epstein-software/SCAMPI")
+devtools::install_github("shijbian/SCAMPI")
 ```
 
 ## Tutorial
