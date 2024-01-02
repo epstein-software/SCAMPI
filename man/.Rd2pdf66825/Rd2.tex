@@ -1,0 +1,237 @@
+\nonstopmode{}
+\documentclass[a4paper]{book}
+\usepackage[times,inconsolata,hyper]{Rd}
+\usepackage{makeidx}
+\usepackage[utf8]{inputenc} % @SET ENCODING@
+% \usepackage{graphicx} % @USE GRAPHICX@
+\makeindex{}
+\begin{document}
+\chapter*{}
+\begin{center}
+{\textbf{\huge Scalable Cauchy Aggregate test using Multiple Phenotypes to test Interactions (SCAMPI)}}
+\par\bigskip{\large \today}
+\end{center}
+\Rdcontents{\R{} topics documented:}
+\inputencoding{utf8}
+\HeaderA{CCT}{Cauchy Combination Test (CCT)}{CCT}
+%
+\begin{Description}
+CCT is used to aggregate multiple p-value developed by Liu and Xie, 202, JASA, 115:529, 393-402, DOI: 10.1080/01621459.2018.1554485
+The code used for implementing CCT is adopted from STAAR\_v0.9.7 contributed by Xihao Li and Zilin Li at
+https://github.com/xihaoli/STAAR/blob/master/R/CCT.R
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+CCT(pvals, weights = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{pvals}] p-values, an array of p-values.
+
+\item[\code{weights}] weights associated with each p-value, SCAMPI used the default weight, 1/len(pvals).
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+a single p-value aggregated from pvals.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+set.seed(123)
+pval <- runif(20)
+CCT(pval)
+\end{ExampleCode}
+\end{Examples}
+\inputencoding{utf8}
+\HeaderA{DgLm}{Double Generalized Linear Models (DGLM) for Multiple Outcomes}{DgLm}
+%
+\begin{Description}
+Apply Double Generalized Linear Models (DGLM) to standardize each
+column in matrix y. The mean sub-model will be standardized by one genotype variable g\_var and multiple confounders z\_var;
+The variance sub-model will be standardized by confounders z\_var. The confounders z\_var is optional.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+DgLm(y, g_var, z_var = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{y}] outcome, a matrix with multiple columns, representing multiple traits
+
+\item[\code{g\_var}] genotype, column matrix G with one column, representing one genotype variable
+
+\item[\code{z\_var}] optional confounder, matrix Z with multiple columns, representing multiple confounders
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+standardized traits of the original trait matrix y, a matrix with multiple columns
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+DgLm(
+  y = matrix(rnorm(500), ncol = 5),
+  z_var = matrix(rnorm(400), ncol = 4),
+  g_var = rbinom(100, 2, 0.25)
+)
+\end{ExampleCode}
+\end{Examples}
+\inputencoding{utf8}
+\HeaderA{levene\_test}{Univariate Levene's Test}{levene.Rul.test}
+%
+\begin{Description}
+The univariate Levene's test can be applied to a single trait. It is implemented
+based on the formula in Pare and Cook, 2010, PLoS Genet 6(6): e1000981. doi:10.1371/journal.pgen.1000981
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+levene_test(y, g_var)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{y}] outcome, column matrix, representing one single trait
+
+\item[\code{g\_var}] genotype, column matrix G with one column, representing one genotype variable
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+one single p-value
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+set.seed(123)
+N <- 1000
+G <- matrix(rbinom(N, 2, 0.25), ncol = 1)
+W <- matrix(rnorm(N), ncol = 1)
+Y <- 0.2 + 0.1 * G + 0.3 * W + 2 * G * W + rnorm(N)
+levene_test(y = Y, g_var = G)
+\end{ExampleCode}
+\end{Examples}
+\inputencoding{utf8}
+\HeaderA{multivariate\_levene\_test}{Multivariate Levene's Test}{multivariate.Rul.levene.Rul.test}
+%
+\begin{Description}
+Multivariate Levene's Test is extended in our paper from the univariate Levene's Test to
+accomodate multiple traits.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+multivariate_levene_test(y, g_var, z_var = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{y}] outcome, a matrix with multiple columns, representing multiple traits
+
+\item[\code{g\_var}] genotype, column matrix G with one column, representing one genotype variable
+
+\item[\code{z\_var}] optional confounder, matrix Z with multiple columns, representing multiple confounders
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+one aggregated p-value for Multivariate Levene's Test
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+set.seed(123)
+multivariate_levene_test(
+  y = matrix(rnorm(500), ncol = 5),
+  z_var = matrix(rnorm(400), ncol = 4),
+  g_var = matrix(rbinom(100, 2, 0.25), ncol = 1)
+)
+\end{ExampleCode}
+\end{Examples}
+\inputencoding{utf8}
+\HeaderA{PC\_scampi\_test}{PC SCAMPI}{PC.Rul.scampi.Rul.test}
+%
+\begin{Description}
+This is a variation of the SCAMPI method. PC SCAMPI treats the PC of traits as
+the outcomes.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+PC_scampi_test(y, g_var, z_var = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{y}] outcome, a matrix with multiple columns, representing multiple traits
+
+\item[\code{g\_var}] genotype, column matrix G with one column, representing one genotype variable
+
+\item[\code{z\_var}] optional confounder, matrix Z with multiple columns, representing multiple confounders
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+PC SCAMPI p-value
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+set.seed(123)
+PC_scampi_test(
+  y = matrix(rnorm(500), ncol = 5),
+  z_var = matrix(rnorm(400), ncol = 4),
+  g_var = matrix(rbinom(100, 2, 0.25), ncol = 1)
+)
+\end{ExampleCode}
+\end{Examples}
+\inputencoding{utf8}
+\HeaderA{SCAMPI}{Scalable Cauchy Aggregate test using Multiple Phenotypes to test Interactions (SCAMPI)}{SCAMPI}
+%
+\begin{Description}
+SCAMPI method is applied for detecting the G x E or G x G interaction effects by
+utilizing both variance and covariance structure of multiple traits.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+SCAMPI(y, g_var, z_var = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{y}] outcome, a matrix with multiple columns, representing multiple traits
+
+\item[\code{g\_var}] genotype, column matrix G with one column, representing one genotype variable
+
+\item[\code{z\_var}] optional confounder, matrix Z with multiple columns, representing multiple confounders
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+SCAMPI p-value
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+SCAMPI(
+  y = matrix(rnorm(500), ncol = 5),
+  z_var = matrix(rnorm(400), ncol = 4),
+  g_var = rbinom(100, 2, 0.25)
+)
+\end{ExampleCode}
+\end{Examples}
+\printindex{}
+\end{document}

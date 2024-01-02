@@ -1,0 +1,6 @@
+\contentsline {subsection}{CCT}{1}{page.1}
+\contentsline {subsection}{DgLm}{2}{page.2}
+\contentsline {subsection}{levene\_test}{2}{page.2}
+\contentsline {subsection}{multivariate\_levene\_test}{3}{page.3}
+\contentsline {subsection}{PC\_scampi\_test}{4}{page.4}
+\contentsline {subsection}{SCAMPI}{4}{page.4}

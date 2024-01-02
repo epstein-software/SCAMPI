@@ -1,0 +1,302 @@
+---
+title: "SCAMPI Tutorial"
+author: "Shijia Bian"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SCAMPI Tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+**Declaration:**  It is important to note that the dataset used in this example is solely for demonstration purposes and does not carry any specific biological implications. Consequently, the results obtained from the SCAMPI analysis should not be interpreted as having biological significance.
+
+## Part I. Install Required Packages
+
+The Genetic Data Structure (GDS) is a specialized format designed for storing genomic data efficiently, offering rapid access to specific data subsets. To leverage the benefits of GDS, genetic data must be converted into this format.
+
+For those looking to convert VCF files to GDS, a detailed tutorial is available at the [UW SISG 2021 GDS Format Guide](https://uw-gac.github.io/SISG_2021/gds-format.html "UW SISG 2021 GDS Format Guide"). Additionally, the `snpgdsBED2GDS` function in the  package `SNPRelate` offers a way to convert PLINK files to GDS. More information about this function can be found on the [SNPRelate's Documentation Page ](https://rdrr.io/bioc/SNPRelate/man/snpgdsBED2GDS.html "SNPRelate's Documentation Page").
+
+Before proceeding to convert to the GDS format, it is required to install the BiocManager package. This package is required for installing other necessary packages such as `SeqArray`, and `SNPRelate.` Below is the code to install all these required packages for SCAMPI using BiocManager. You need to uncomment the code to install all the packages required by `SCAMPI`.
+
+```{r message=FALSE}
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+
+# BiocManager::install("SeqArray")
+library(SeqArray)
+
+# BiocManager::install("SNPRelate")
+library(SNPRelate)
+
+# install.packages("gdata")
+library(gdata)
+
+# install.packages("dglm")
+library(dglm)
+
+# install.packages("lubridate")
+library(lubridate)
+
+# install.packages("tidyverse")
+library(tidyverse)
+
+# install.packages("qqman")
+library(qqman)
+```
+
+Then let's request SCAMPI.
+
+```{r setup}
+library(SCAMPI)
+```
+
+## Part II. Sample Data
+
+The dataset, named `trait`, is a dataframe consisting of 1,126 rows and 11 columns. The initial column, subject_id, uniquely identifies each participant. Following this are four columns providing demographic details for the 1,126 subjects, which include sex, age, height (in centimeters), and the study (specific study cohort they belong to). The remaining six columns, labeled trait_1 through trait_6, correspond to six different quantitative traits.
+
+```{r}
+head(trait)
+```
+
+For demonstration purposes, the genotype is limited to a small **subset** of SNPs from chromosome 1 and has been converted into the GDS format, named `1KG_phase3_subset_chr1.gds`.
+
+```{r}
+# open a connection to the GDS file
+SNP_data <- seqOpen("../data/1KG_phase3_subset_chr1.gds")
+SNP_data
+seqClose(SNP_data)
+```
+
+The data sets utilized in this tutorial are sourced from the
+[UW SISG 2021 GDS Sample Data](https://github.com/UW-GAC/SISG_2021/tree/master/data "UW SISG 2021 GDS Sample Data"). 
+
+## Part III. Format the Trait Data
+
+The objective at this step is to format the variables appropriately. The variable `sex` will be coded as a binary variable. Given that the `study` variable comprises three categories, it will be encoded into two columns.
+
+```{r transform_data, message=FALSE}
+trait$sex_F <- 0
+trait$sex_F[trait$sex == "M"] <- 1
+
+trait$study_2 <- 0
+trait$study_3 <- 0
+trait$study_2[trait$study == "study_2"] <- 1
+trait$study_3[trait$study == "study_3"] <- 1
+```
+
+As a reminder that checking for the normal distribution of trait outcomes (as represented by the six traits in this dataset) is a standard practice, which is to ensure that the residuals are normally distributed when conducting regression analysis. If the trait outcomes are not normally distributed, applying an inverse normal transformation is one common method used to transform the data. Other approaches can also be considered if needed. In our data, the six traits are approximately normally distributed, so we do not need further transformation.
+
+## Part IV. SCAMPI Pipeline Demonstration
+
+The primary objective of this exercise is to show the users regarding how to employ SCAMPI to investigate the presence of G x E (Gene by Environment) or G x G (Gene by Gene) interaction effects pertaining to at least one of these six traits at chromosome 1. While sex, age, height, and study cohort are treated as confounding factors in this analysis, you can apply your expertise in selecting alternative variables as either confounders or traits for your personal practice.
+
+The process begins with establishing a connection to the GDS file, accomplished by using the `seqGetData` function. Following this, we are able to extract both the SNP ID and the subject ID from the GDS file.
+
+```{r}
+Pheno_Outcome <- "Trait1-6"
+Confounder <- "Age; Gender; Height; Study ID"
+N_pheno <- 6
+
+# open a connection to the GDS file
+SNP_data <- seqOpen("../data/1KG_phase3_subset_chr1.gds")
+
+# Get the SNP ID that will be included
+variant.id <- seqGetData(SNP_data, "variant.id")
+SNV.id <- variant.id
+
+# Select the sample/participant ID
+sample.id.sliced <- trait$subject_id
+```
+
+To store the final p-values, we will create some empty dataframes. The dataframe, named `df_res`, is designated for storing the aggregated p-values from both SCAMPI. It includes initial columns (variant_id to alt) that uniquely identify each SNP. The column `p_value` is reserved for the final p-values, while the `method` column indicates whether SCAMPI or other method, such as Multivariate-Levene's test.
+
+Additionally, we have another dataframe: `df_scampi_single_pval`. This dataframe stores the individual p-values associated with each variance or covariance element for the SCAMPI. For each SNP, SCAMPI produces P choose 2 plus P p-values for P traits. In this example, it will generate 21 columns to store 21 p-values from the 6 traits.
+
+```{r}
+# Aggregated p-value
+df_res <- data.frame(
+  variant_id = double(),
+  chrom = double(),
+  pos = character(),
+  ref = character(),
+  alt = character(),
+  N = double(),
+  N_complete = double(),
+  N_pheno = double(),
+  Pheno_Outcome = character(),
+  maf_N_complete = double(),
+  Confounder = character(),
+  method = character(),
+  p_value = double(),
+  time = double(),
+  stringsAsFactors = FALSE
+)
+
+# SCAMPI single p-value
+df_scampi_single_pval <- data.frame(
+  variant_id = double(),
+  chrom = double(),
+  pos = character(),
+  ref = character(),
+  alt = character(),
+  N = double(),
+  N_complete = double(),
+  N_pheno = double(),
+  Pheno_Outcome = character(),
+  maf_N_complete = double(),
+  Confounder = character(),
+  method = character(),
+  p_value = double(),
+  stringsAsFactors = FALSE
+)
+
+df_scampi_single_pval <- cbind(df_scampi_single_pval, replicate(choose(N_pheno, 2) + N_pheno - 1, df_scampi_single_pval$p_value))
+names(df_scampi_single_pval)[(length(names(df_scampi_single_pval)) - choose(N_pheno, 2) - N_pheno + 1):length(names(df_scampi_single_pval))] <- paste("pval_", c(1:(choose(N_pheno, 2) + N_pheno)), sep = "")
+```
+
+
+The `seqSetFilter` function allows us to filter the data to include only the intersection of chosen subjects and/or SNPs. This is particularly useful for segmenting the long sequence of SNPs into smaller subsets, facilitating the submission to multiple job arrays when running SCAMPI on High-Performance Computing (HPC) systems. In this example, given the small sample size, we can conveniently filter by all SNP IDs and sample IDs.
+
+```{r}
+# Open the filter
+seqSetFilter(SNP_data,
+  variant.id = SNV.id,
+  sample.id = sample.id.sliced
+)
+
+# The sample ID ordered as shown in genotype dataset
+sample_id_sliced <- seqGetData(SNP_data, "sample.id")
+sample_id_sliced_df <- data.frame(sample_id_sliced)
+names(sample_id_sliced_df) <- "subject_id"
+chrom <- seqGetData(SNP_data, "chromosome")
+pos <- seqGetData(SNP_data, "position")
+ref <- seqGetData(SNP_data, "$ref")
+alt <- seqGetData(SNP_data, "$alt")
+```
+
+Finally, we iterate over each SNP, applying the SCAMPI method using the `SCAMPI` function. The code contains detailed comments outlining each step of these procedures.
+
+One additional note is, the Multivariate-Levene's test, a new method developed from the single-variate Levene's test, is also implemented by our pacckage through the `multivariate_levene_test` function. 
+
+```{r message = FALSE}
+for (genom in 1:length(SNV.id)) {
+  # Prep 1: Order the phenotype data according to the order of the genotype data
+  joint_sliced <- sample_id_sliced_df %>%
+    left_join(., trait)
+
+  # Prep 2: Prepare Genotypes(G), add G to dataframe for selecting complete data
+  dos <- seqGetData(SNP_data, "$dosage")
+  X <- dos[, genom]
+  One_X_dat <- cbind(joint_sliced, X)
+
+  Complete_One_X_dat <- One_X_dat[complete.cases(One_X_dat), ]
+
+  temp_maf <- min(
+    sum(Complete_One_X_dat$X) / (length(Complete_One_X_dat$X) * 2),
+    1 - sum(Complete_One_X_dat$X) / (length(Complete_One_X_dat$X) * 2)
+  )
+
+
+  # Prep 3: Prepare Phenotypic Outcomes
+  Y_df <- as.data.frame(Complete_One_X_dat[, names(Complete_One_X_dat) %in% c("trait_1", "trait_2", "trait_3", "trait_4", "trait_5", "trait_6")])
+  sim_Y <- as.matrix(Y_df)
+
+
+  # Prep 4: Prepare Genotype
+  X <- as.matrix(as.data.frame(Complete_One_X_dat$X))
+
+  # Prep 5: Prepare Confounders
+  Z_con <- as.matrix(as.data.frame(Complete_One_X_dat[, names(Complete_One_X_dat) %in% c("sex_F", "age", "height", "study_2", "study_3")]))
+  if (dim(sim_Y)[2] != N_pheno) {
+    stop("The second dimension of Y is wrong!")
+  }
+
+  # Aplly SCAMPI
+  SCAMPI_START <- Sys.time()
+  SCAMPI_result <- SCAMPI(
+    y = sim_Y,
+    g_var = X,
+    z_var = Z_con
+  )
+  SCAMPI_pval <- SCAMPI_result$aggregate_pvalue
+  pval_single_SCAMPI <- SCAMPI_result$single_pvalue
+  SCAMPI_END <- Sys.time()
+  SCAMPI_time <- as.numeric(SCAMPI_END - SCAMPI_START, units = "secs")
+  df_scampi <- data.frame(
+    variant_id = genom,
+    chrom = as.numeric(chrom[genom]),
+    pos = toString(pos[genom]),
+    ref = toString(ref[genom]),
+    alt = toString(alt[genom]),
+    N = nrow(joint_sliced),
+    N_complete = nrow(Complete_One_X_dat),
+    N_pheno = N_pheno,
+    Pheno_Outcome = Pheno_Outcome,
+    maf_N_complete = temp_maf,
+    Confounder = Confounder,
+    method = "SCAMPI",
+    p_value = SCAMPI_pval,
+    time = SCAMPI_time,
+    stringsAsFactors = FALSE
+  )
+
+  df_res <- rbind(
+    df_res,
+    df_scampi
+  )
+
+  # Save single p-value
+  df_scampi_single <- data.frame(
+    variant_id = genom,
+    chrom = as.numeric(chrom[genom]),
+    pos = toString(pos[genom]),
+    ref = toString(ref[genom]),
+    alt = toString(alt[genom]),
+    N = nrow(joint_sliced),
+    N_complete = nrow(Complete_One_X_dat),
+    N_pheno = N_pheno,
+    Pheno_Outcome = Pheno_Outcome,
+    maf_N_complete = temp_maf,
+    Confounder = Confounder,
+    method = "SCAMPI",
+    stringsAsFactors = FALSE
+  )
+
+
+  for (i in 1:(choose(N_pheno, 2) + N_pheno)) {
+    df_scampi_single[paste("pval_", i, sep = "")] <- pval_single_SCAMPI[i]
+  }
+
+  df_scampi_single_pval <- rbind(df_scampi_single_pval, df_scampi_single)
+
+  if (genom %% 100 == 0) {
+    print(genom)
+  }
+}
+seqClose(SNP_data)
+```
+
+## Part V. Analyze the Result
+
+You have the flexibility to choose your preferred method for visualizing the p-values, such as using a Manhattan plot. However, it's advisable to perform some Quality Control (QC) filtering beforehand to exclude SNPs that don't meet QC standards. This QC step can be applied either before using `seqSetFilter` or after analyzing all SNPs using SCAMPI. For example, we can eliminate less common SNPs with a Minor Allele Frequency (MAF) below 0.05 and those with more than 10% missing data. Additionally, we create a new column named SNP to represent the RS ID. This ID, which is absent in our dataset but necessary for generating a Manhattan plot using the `manhattan` function, is thus artificially generated for plotting purposes. The real genotype data, such as UKBB, should have the correct RS ID label. 
+
+```{r}
+df_res$SNP <- paste("rs", df_res$variant_id, sep = "")
+df_res_qc <- df_res %>% filter(maf_N_complete >= 0.05, N_complete >= 0.9 * 1126)
+```
+
+The `manhattan` function from the `qqman` package can be utilized to generate a Manhattan plot. This particular visualization will focus exclusively on a subset of SNPs located on the first chromosome.
+
+```{r fig.align='center', fig.height = 4, fig.width = 8}
+manhattan(df_res_qc, chr = "chrom", bp = "variant_id", p = "p_value")
+```
+

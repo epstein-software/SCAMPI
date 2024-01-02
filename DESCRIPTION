@@ -1,0 +1,27 @@
+Package: SCAMPI
+Type: Package
+Title: Scalable Cauchy Aggregate test using Multiple Phenotypes to test Interactions (SCAMPI)
+Version: 0.1.0
+Authors@R: 
+    person("Shijia", "Bian", , "shijia.bian@emory.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-5314-0726"))
+Maintainer: Shijia Bian <shijia.bian@emory.edu>
+Description: SCAMPI is a screening tool to prioritiz SNPs for future interaction analyses
+    SCAMPI is a variance- and covariance-based method.
+License: MIT License
+Imports:
+    dplyr,
+    tidyverse,
+    dglm,
+    magrittr
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 2.10)
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+RoxygenNote: 7.2.3
+VignetteBuilder: knitr
