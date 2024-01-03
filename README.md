@@ -8,7 +8,7 @@ SCAMPI is developed for screening SNPs with potential interaction effects withou
 ![SCAMPI Workflow](docs/SCAMPI_WORKFLOW.png)
 
 ## Prerequisites
-<a href="https://www.r-project.org">R</a> (recommended version >= 4.3.1)
+<a href="https://www.r-project.org">R</a> (recommended version >= 3.5.1)
 
 ## Installation
 

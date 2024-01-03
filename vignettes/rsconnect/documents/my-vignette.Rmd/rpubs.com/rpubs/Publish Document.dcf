@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/1134605/39c408577a2042b7b88404197ed1fb3b
+bundleId: https://api.rpubs.com/api/v1/document/1134605/39c408577a2042b7b88404197ed1fb3b
+url: http://rpubs.com/shijbian/1134605
+version: 1
