@@ -20,6 +20,10 @@ devtools::install_github("shijbian/SCAMPI")
 ## Tutorial
 <a href="https://rpubs.com/shijbian/SCAMPI_Tutorial">SCAMPI Tutorial</a>
 
+## Contact Us
+Shijia Bian: shijia.bian@emory.edu
+Michael Epstein, Ph.D.: mpepste@emory.edu
+
 ## License
 This software is licensed under MIT License.
 
