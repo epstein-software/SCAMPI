@@ -1,7 +1,7 @@
 # SCAMPI (Scalable Cauchy Aggregate test using Multiple Phenotypes to test Interactions)
 
 ## Description
-SCAMPI is developed for screening SNPs with potential interaction effects without requiring the specification of the interacting variables. SCAMPI can be easily scaled to biobank scale dataset.
+SCAMPI is developed for screening SNPs with potential interaction effects (including G x E and G x G). SCAMPI does not require specify the interacting variables. SCAMPI can be easily scaled to biobank scale dataset.
 
 ## SCAMPI Workflow
 
