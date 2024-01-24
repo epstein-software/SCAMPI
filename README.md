@@ -22,6 +22,7 @@ devtools::install_github("shijbian/SCAMPI")
 
 ## Contact Us
 Shijia Bian: shijia.bian@emory.edu
+
 Michael Epstein, Ph.D.: mpepste@emory.edu
 
 ## License
